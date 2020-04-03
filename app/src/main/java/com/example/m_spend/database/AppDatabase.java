@@ -13,24 +13,24 @@ import androidx.room.TypeConverters;
 @TypeConverters(Converters.class)
 public abstract class AppDatabase extends RoomDatabase {
 
-    private static AppDatabase INSTANCE;
+  private static AppDatabase INSTANCE;
 
-    public abstract UserDao userDao();
+  public abstract UserDao userDao();
 
 
-    public static AppDatabase getAppDatabase(Context context) {
-        if (INSTANCE == null) {
-            INSTANCE =
-                    Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "med-manager-database")
-                            // allow queries on the main thread.
-                            // Don't do this on a real app! See PersistenceBasicSample for an example.
-                            .allowMainThreadQueries()
-                            .build();
-        }
-        return INSTANCE;
+  public static AppDatabase getAppDatabase(Context context) {
+    if (INSTANCE == null) {
+      INSTANCE =
+              Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "med-manager-database")
+                      // allow queries on the main thread.
+                      // Don't do this on a real app! See PersistenceBasicSample for an example.
+                      .allowMainThreadQueries()
+                      .build();
     }
+    return INSTANCE;
+  }
 
-    public static void destroyInstance() {
-        INSTANCE = null;
-    }
+  public static void destroyInstance() {
+    INSTANCE = null;
+  }
 }

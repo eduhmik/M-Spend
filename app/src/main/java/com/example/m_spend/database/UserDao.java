@@ -13,24 +13,24 @@ import androidx.room.Update;
 @Dao
 public interface UserDao {
 
-    @Query("SELECT * FROM user")
-    List<User> getAll();
+  @Query("SELECT * FROM user")
+  List<User> getAll();
 
-    @Query("SELECT * FROM user where first_name LIKE  :firstName AND last_name LIKE :lastName")
-    User findByName(String firstName, String lastName);
+  @Query("SELECT * FROM user where first_name LIKE  :firstName AND last_name LIKE :lastName")
+  User findByName(String firstName, String lastName);
 
-    @Query("SELECT * FROM user where id LIKE  :id")
-    User findById(int id);
+  @Query("SELECT * FROM user where id LIKE  :id")
+  User findById(int id);
 
-    @Query("SELECT COUNT(*) from user")
-    int countUsers();
+  @Query("SELECT COUNT(*) from user")
+  int countUsers();
 
-    @Insert
-    void insertAll(User... users);
+  @Insert
+  void insertAll(User... users);
 
-    @Update
-    void upDate(User... users);
+  @Update
+  void upDate(User... users);
 
-    @Delete
-    void delete(User user);
+  @Delete
+  void delete(User user);
 }
