@@ -170,7 +170,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         TextView tvEmail = (TextView) headerView.findViewById(R.id.tv_Email);
         TextView tvName = (TextView) headerView.findViewById(R.id.tv_Name);
         ImageView ivImage = (ImageView) headerView.findViewById(R.id.iv_ProfileImage);
-        tvName.setText(user.getFirstName()+" "+user.getLastName());
+        tvName.setText(user.getFirstName());
         tvEmail.setText(user.getEmail());
         Glide.with(this).load(user.getImage()).apply(RequestOptions.circleCropTransform()).into(ivImage);
     }

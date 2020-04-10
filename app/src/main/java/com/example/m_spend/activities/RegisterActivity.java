@@ -7,8 +7,10 @@ import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 
 import com.bumptech.glide.Glide;
 import com.example.m_spend.R;
@@ -18,13 +20,24 @@ import com.example.m_spend.database.AppDatabase;
 import com.example.m_spend.models.User;
 import com.example.m_spend.tools.SweetAlertDialog;
 import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.OptionalPendingResult;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -35,11 +48,17 @@ import butterknife.OnClick;
 
 import static com.bumptech.glide.request.RequestOptions.circleCropTransform;
 
-public class RegisterActivity extends BaseActivity implements GoogleApiClient.OnConnectionFailedListener{
-    private static final String TAG = "Google SIgn In";
-    private static final int OUR_REQUEST_CODE = 49404;
+public class RegisterActivity extends BaseActivity {
+
     public static String PHOTO_URL="";
-    private GoogleApiClient mGoogleApiClient;
+    private static final String TAG = "GoogleActivity";
+    private static final int RC_SIGN_IN = 9001;
+
+    // [START declare_auth]
+    private FirebaseAuth mAuth;
+    // [END declare_auth]
+
+    private GoogleSignInClient mGoogleSignInClient;
     @BindView(R.id.et_Email)
     EditText etEmail;
     @BindView(R.id.et_FirstName)
@@ -67,9 +86,6 @@ public class RegisterActivity extends BaseActivity implements GoogleApiClient.On
         } else if(TextUtils.isEmpty(firstName)){
             etFirstName.requestFocus();
             etFirstName.setError("First name cannot be empty");
-        }else if(TextUtils.isEmpty(lastName)){
-            etLastName.requestFocus();
-            etLastName.setError("Last name cannot be empty");
         }else{
             register(email,firstName,lastName);
         }
@@ -100,11 +116,11 @@ public class RegisterActivity extends BaseActivity implements GoogleApiClient.On
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        initGoogleClient();
         setContentView(R.layout.activity_register);
         setTitle("Sign Up");
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         ButterKnife.bind(this);
+        initGoogleClient();
     }
 
     @Override
@@ -122,80 +138,129 @@ public class RegisterActivity extends BaseActivity implements GoogleApiClient.On
     }
     public void initGoogleClient(){
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(AppData.GOOGLE_SERVER_CLIENT_ID).requestEmail().build();
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .enableAutoManage(this, this)
-                .addApi(Auth.GOOGLE_SIGN_IN_API,gso)
-                .build();
-        mGoogleApiClient.connect();
-        silentSignin();
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
+
+        //intialize firebase auth
+        mAuth = FirebaseAuth.getInstance();
+        signIn();
     }
 
-    @Override
-    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
-        startActivityForResult(signInIntent, OUR_REQUEST_CODE);
-    }
 
     @Override
     protected void onStart() {
         super.onStart();
-
+        // Check if user is signed in (non-null) and update UI accordingly.
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        updateUI(currentUser);
     }
     @Override
     public void onPause() {
         super.onPause();
-        mGoogleApiClient.stopAutoManage(this);
-        mGoogleApiClient.disconnect();
     }
-    @Override
-    public void onConnectionFailed(ConnectionResult result) {
-        if (!result.hasResolution()) {
-            return;
-        }
-    }
-    @SuppressLint("NewApi")
+
+    // [START onactivityresult]
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.e("Contacts","Register Fragment"+requestCode);
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == OUR_REQUEST_CODE) {
-            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            handleSignInResult(result);
+
+        // Result returned from launching the Intent from GoogleSignInApi.getSignInIntent(...);
+        if (requestCode == RC_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            try {
+                // Google Sign In was successful, authenticate with Firebase
+                GoogleSignInAccount account = task.getResult(ApiException.class);
+                firebaseAuthWithGoogle(account);
+            } catch (ApiException e) {
+                // Google Sign In failed, update UI appropriately
+                Log.w(TAG, "Google sign in failed", e);
+                // [START_EXCLUDE]
+                updateUI(null);
+                // [END_EXCLUDE]
+            }
         }
     }
-    public void silentSignin(){
-        OptionalPendingResult<GoogleSignInResult> opr = Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
-        if (opr.isDone()) {
-            Log.d(TAG, "Got cached sign-in");
-            GoogleSignInResult result = opr.get();
-            handleSignInResult(result);
-        } else {
-            Log.d(TAG, "No cached sign-in");
-            showProgressDialog("Signing in");
-            opr.setResultCallback(new ResultCallback<GoogleSignInResult>() {
-                @Override
-                public void onResult(@NonNull GoogleSignInResult googleSignInResult) {
-                    dismissDialog(1);
-                    handleSignInResult(googleSignInResult);
-                }
-            });
-        }
+    // [END onactivityresult]
+
+    // [START auth_with_google]
+    private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {
+        Log.d(TAG, "firebaseAuthWithGoogle:" + acct.getId());
+        // [START_EXCLUDE silent]
+        showProgressBar();
+        // [END_EXCLUDE]
+
+        AuthCredential credential = GoogleAuthProvider.getCredential(acct.getIdToken(), null);
+        mAuth.signInWithCredential(credential)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            // Sign in success, update UI with the signed-in user's information
+                            Log.d(TAG, "signInWithCredential:success");
+                            FirebaseUser user = mAuth.getCurrentUser();
+                            updateUI(user);
+                        } else {
+                            // If sign in fails, display a message to the user.
+                            Log.w(TAG, "signInWithCredential:failure", task.getException());
+                            showToast("Authentication Failed.");
+                            updateUI(null);
+                        }
+
+                        // [START_EXCLUDE]
+                        hideProgressBar();
+                        // [END_EXCLUDE]
+                    }
+                });
     }
-    public void handleSignInResult(GoogleSignInResult result) {
-        Log.e(TAG, "handleSignInResult:" + result.isSuccess()+":"+result.getStatus().toString());
-        if (result.isSuccess()) {
-            GoogleSignInAccount acct = result.getSignInAccount();
-            Log.e("",acct.getEmail());
-            etEmail.setText(acct.getEmail());
-            etFirstName.setText(acct.getGivenName());
-            etLastName.setText(acct.getFamilyName());
-            if(acct.getPhotoUrl() != null) {
-                Glide.with(this).load(acct.getPhotoUrl().toString()).apply(circleCropTransform()).into(ivProfileImage);
-                PHOTO_URL = acct.getPhotoUrl().toString();
+    // [END auth_with_google]
+
+    // [START signin]
+    private void signIn() {
+        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+        startActivityForResult(signInIntent, RC_SIGN_IN);
+    }
+    // [END signin]
+
+    private void signOut() {
+        // Firebase sign out
+        mAuth.signOut();
+
+        // Google sign out
+        mGoogleSignInClient.signOut().addOnCompleteListener(this,
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        updateUI(null);
+                    }
+                });
+    }
+
+    private void revokeAccess() {
+        // Firebase sign out
+        mAuth.signOut();
+
+        // Google revoke access
+        mGoogleSignInClient.revokeAccess().addOnCompleteListener(this,
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        updateUI(null);
+                    }
+                });
+    }
+
+    private void updateUI(FirebaseUser user) {
+        hideProgressBar();
+        if (user != null) {
+            etEmail.setText(user.getEmail());
+            etFirstName.setText(user.getDisplayName());
+            // etLastName.setText(user.getDisplayName());
+            if(user.getPhotoUrl() != null) {
+                Glide.with(this).load(user.getPhotoUrl().toString()).apply(circleCropTransform()).into(ivProfileImage);
+                PHOTO_URL = user.getPhotoUrl().toString();
             }else{
 
             }
+
         } else {
             showToast("Sign In Failure");
         }

@@ -5,6 +5,7 @@
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:allowBackup="true"
@@ -17,6 +18,7 @@
         tools:replace="icon, android:allowBackup">
         <activity android:name=".activities.ViewActivity"></activity>
         <activity android:name=".activities.RegisterActivity" />
+        <activity android:name=".activities.EditProfileActivity" />
         <activity
             android:name=".activities.MainActivity"
             android:theme="@style/AppTheme.NoActionBar" />

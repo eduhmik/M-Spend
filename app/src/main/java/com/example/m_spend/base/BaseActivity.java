@@ -2,27 +2,33 @@ package com.example.m_spend.base;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.example.m_spend.sharedprefs.SharedPrefs;
 import com.example.m_spend.tools.SweetAlertDialog;
 import com.google.gson.Gson;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 
 
 public abstract class BaseActivity extends AppCompatActivity {
-  public ProgressDialog _dialog;
   public SweetAlertDialog _sweetAlertDialog;
   public SharedPrefs sharedPrefs;
+  @VisibleForTesting
+  public ProgressBar mProgressBar;
+
   public Gson gson;
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     sharedPrefs = new SharedPrefs(this);
-    _dialog = new ProgressDialog(this);
     gson = new Gson();
   }
   /**
@@ -64,14 +70,36 @@ public abstract class BaseActivity extends AppCompatActivity {
   /**
    * init progress dialog, called by network requests
    */
-  public void showProgressDialog(String message)
-  {
-    _dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-    _dialog.setMessage(message);
-    _dialog.setIndeterminate(true);
-    _dialog.setCanceledOnTouchOutside(false);
-    _dialog.show();
+
+  public void setProgressBar(int resId) {
+    mProgressBar = findViewById(resId);
   }
+
+  public void showProgressBar() {
+    if (mProgressBar != null) {
+      mProgressBar.setVisibility(View.VISIBLE);
+    }
+  }
+
+  public void hideProgressBar() {
+    if (mProgressBar != null) {
+      mProgressBar.setVisibility(View.INVISIBLE);
+    }
+  }
+
+  public void hideKeyboard(View view) {
+    final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+    if (imm != null) {
+      imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+    }
+  }
+
+  @Override
+  public void onStop() {
+    super.onStop();
+    hideProgressBar();
+  }
+
 
   public void startNewActivity(Class<? extends Activity> clazz){
     startActivity(new Intent(this,clazz));

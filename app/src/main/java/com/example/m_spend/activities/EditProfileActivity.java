@@ -50,10 +50,7 @@ public class EditProfileActivity extends BaseActivity {
     } else if(TextUtils.isEmpty(firstName)){
       etFirstName.requestFocus();
       etFirstName.setError("First name cannot be empty");
-    }else if(TextUtils.isEmpty(lastName)){
-      etLastName.requestFocus();
-      etLastName.setError("Last name cannot be empty");
-    }else{
+    } else{
       register(email,firstName,lastName);
     }
   }
